@@ -6,8 +6,7 @@
       type="search"
       class="search__input"
       role="searchbox"
-      placeholder="Search by keyword (e.g. ocean, city, nature)…"
-      [value]="store.query()"
+      placeholder="Search videos (e.g. ocean, city, nature)…"
       [attr.aria-busy]="store.status() === 'loading'"
       (input)="onSearch($event)"
     />
@@ -19,12 +18,15 @@
       <select
         id="resolution"
         class="filter__select"
-        [value]="store.resolutionFilter()"
         (change)="onFilterChange($event)"
       >
-        <option value="all">All resolutions</option>
+        <option value="all" [selected]="store.resolutionFilter() === 'all'">
+          All resolutions
+        </option>
         @for (res of store.availableResolutions(); track res) {
-          <option [value]="res">{{ res }}</option>
+          <option [value]="res" [selected]="store.resolutionFilter() === res">
+            {{ res }}
+          </option>
         }
       </select>
     </div>
@@ -60,8 +62,8 @@
     @default {
       @if (store.filteredVideos().length === 0) {
         <div class="state state--empty">
-          <h2>No matches for this resolution</h2>
-          <p>Choose “All resolutions” to see everything.</p>
+          <h2>No matches</h2>
+          <p>Try a different title/author or choose “All resolutions”.</p>
         </div>
       } @else {
         <ul class="grid" role="list">
@@ -110,6 +112,19 @@
             </li>
           }
         </ul>
+
+        @if (store.hasMore()) {
+          <div class="load-more">
+            <button
+              type="button"
+              class="btn"
+              [disabled]="store.loadingMore()"
+              (click)="store.loadMore()"
+            >
+              {{ store.loadingMore() ? 'Loading…' : 'Load more' }}
+            </button>
+          </div>
+        }
       }
     }
   }

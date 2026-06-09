@@ -1,0 +1,72 @@
+<header class="history-head">
+  <h1>Watch history</h1>
+  @if (store.count() > 0) {
+    <button type="button" class="link-btn" (click)="store.clear()">
+      Clear all
+    </button>
+  }
+</header>
+
+@if (store.recent().length === 0) {
+  <div class="state state--empty">
+    <h2>No history yet</h2>
+    <p>Videos you watch will appear here.</p>
+    <a class="btn" routerLink="/videos">Browse videos</a>
+  </div>
+} @else {
+  <ul class="history" role="list">
+    @for (entry of store.recent(); track entry.entryId) {
+      <li class="item">
+        <a
+          class="item__thumb"
+          [routerLink]="['/videos', entry.videoId]"
+          [queryParams]="{ t: entry.status === 'finished' ? 0 : entry.positionSec }"
+          [attr.aria-label]="'Play again: ' + entry.title"
+        >
+          @if (entry.posterUrl) {
+            <img [src]="entry.posterUrl" alt="" loading="lazy" decoding="async" />
+          } @else {
+            <span class="item__thumb-fallback" aria-hidden="true">🎞️</span>
+          }
+        </a>
+
+        <div class="item__body">
+          <span class="item__title">{{ entry.title }}</span>
+          <span class="item__meta">
+            @if (entry.status === 'finished') {
+              <span class="badge badge--done">Finished</span>
+            } @else {
+              <span class="badge badge--stop">
+                Stopped at {{ entry.positionSec | duration }}
+              </span>
+            }
+            @if (entry.durationSec) {
+              <span class="item__dur">
+                / {{ entry.durationSec | duration }}
+              </span>
+            }
+          </span>
+          <span class="item__date">{{ entry.watchedAt | date: 'medium' }}</span>
+        </div>
+
+        <div class="item__actions">
+          <a
+            class="btn btn--sm"
+            [routerLink]="['/videos', entry.videoId]"
+            [queryParams]="{ t: entry.status === 'finished' ? 0 : entry.positionSec }"
+          >
+            ▶ Play again
+          </a>
+          <button
+            type="button"
+            class="btn btn--sm btn--danger"
+            [attr.aria-label]="'Delete from history: ' + entry.title"
+            (click)="store.remove(entry.entryId)"
+          >
+            🗑 Delete
+          </button>
+        </div>
+      </li>
+    }
+  </ul>
+}

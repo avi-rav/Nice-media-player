@@ -18,5 +18,13 @@ export const routes: Routes = [
         (m) => m.VideoPlayerPage,
       ),
   },
+  {
+    path: 'history',
+    title: 'History · Nice Media Player',
+    loadComponent: () =>
+      import('./features/history/pages/history.page').then(
+        (m) => m.HistoryPage,
+      ),
+  },
   { path: '**', redirectTo: 'videos' },
 ];

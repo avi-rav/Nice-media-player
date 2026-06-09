@@ -115,8 +115,13 @@ export class VideoMapperService {
   ): VideoSource | null {
     const height = this.firstFinite(file.height, parent.height);
     const width = this.firstFinite(file.width, parent.width);
-    const label = this.resolution.labelForHeight(height);
-    if (!label || height === null || width === null) {
+    if (height === null || width === null) {
+      return null;
+    }
+    // Use the smaller dimension so the "p" label is correct for portrait clips too
+    // (e.g. a 1080×1920 vertical video is 1080p, not 1920/"4K").
+    const label = this.resolution.labelForHeight(Math.min(width, height));
+    if (!label) {
       return null;
     }
     return {

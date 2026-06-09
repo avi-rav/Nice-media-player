@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   ElementRef,
+  OnDestroy,
   OnInit,
   computed,
   inject,
@@ -9,8 +10,13 @@ import {
   viewChild,
 } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+import { HistoryEntry, HistoryStatus } from '../../../../core/models/history.model';
+import { HistoryStore } from '../../../history/state/history.store';
 import { DurationPipe } from '../../../../shared/pipes/duration.pipe';
 import { VideosStore } from '../../state/videos.store';
+
+/** Persist the watch position at most this often while playing (ms). */
+const HISTORY_THROTTLE_MS = 5000;
 
 @Component({
   selector: 'app-video-player',
@@ -19,9 +25,17 @@ import { VideosStore } from '../../state/videos.store';
   templateUrl: './video-player.page.html',
   styleUrl: './video-player.page.scss',
 })
-export class VideoPlayerPage implements OnInit {
+export class VideoPlayerPage implements OnInit, OnDestroy {
   protected readonly store = inject(VideosStore);
+  private readonly history = inject(HistoryStore);
   private readonly route = inject(ActivatedRoute);
+
+  // Watch-session tracking.
+  private sessionId: string | null = null;
+  private endedReached = false;
+  private lastWriteMs = 0;
+  private resumeTo = 0;
+  private resumed = false;
 
   private readonly videoEl =
     viewChild<ElementRef<HTMLVideoElement>>('player');
@@ -52,6 +66,14 @@ export class VideoPlayerPage implements OnInit {
     if (Number.isFinite(id) && id > 0) {
       this.store.ensureSelected(id);
     }
+    // Resume position passed by "Play again" from the history page.
+    const t = Number(this.route.snapshot.queryParamMap.get('t'));
+    this.resumeTo = Number.isFinite(t) && t > 0 ? t : 0;
+  }
+
+  ngOnDestroy(): void {
+    // Finalize the session when leaving the player.
+    this.recordSession(this.endedReached ? 'finished' : 'stopped');
   }
 
   private get el(): HTMLVideoElement | undefined {
@@ -70,12 +92,64 @@ export class VideoPlayerPage implements OnInit {
 
   protected onLoadedMetadata(): void {
     const el = this.el;
-    if (el) this.duration.set(el.duration || 0);
+    if (!el) return;
+    this.duration.set(el.duration || 0);
+    // Seek once to the resume position (from history "Play again").
+    if (!this.resumed && this.resumeTo > 0) {
+      el.currentTime = Math.min(this.resumeTo, el.duration || this.resumeTo);
+      this.resumed = true;
+    }
+  }
+
+  protected onPlay(): void {
+    this.isPlaying.set(true);
+    if (!this.sessionId) {
+      // Start a new watch session on first play.
+      this.sessionId = `${this.video()?.id ?? 'x'}-${Date.now()}`;
+      this.endedReached = false;
+    }
+  }
+
+  protected onEnded(): void {
+    this.isPlaying.set(false);
+    this.endedReached = true;
+    this.recordSession('finished');
   }
 
   protected onTimeUpdate(): void {
     const el = this.el;
-    if (el) this.currentTime.set(el.currentTime);
+    if (!el) return;
+    this.currentTime.set(el.currentTime);
+    // Persist progress live, throttled, so a hard close keeps a recent snapshot.
+    const now = Date.now();
+    if (now - this.lastWriteMs >= HISTORY_THROTTLE_MS) {
+      this.lastWriteMs = now;
+      this.recordSession('stopped');
+    }
+  }
+
+  /** Write (or update) this watch session into history. */
+  private recordSession(status: HistoryStatus): void {
+    const video = this.video();
+    const position = this.currentTime();
+    // Skip empty sessions (opened but never played).
+    if (!video || (!this.endedReached && position <= 0)) {
+      return;
+    }
+    if (!this.sessionId) {
+      this.sessionId = `${video.id}-${Date.now()}`;
+    }
+    const entry: HistoryEntry = {
+      entryId: this.sessionId,
+      videoId: video.id,
+      title: video.title,
+      posterUrl: video.posterUrl,
+      positionSec: Math.floor(position),
+      durationSec: this.duration() || video.durationSec,
+      status,
+      watchedAt: Date.now(),
+    };
+    this.history.upsertSession(entry);
   }
 
   protected onSeek(event: Event): void {

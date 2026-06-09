@@ -7,6 +7,9 @@ import {
   PexelsVideoListResponseDto,
 } from '../models/pexels-api.dto';
 
+/** Page size for the gallery / search results. */
+export const PER_PAGE = 24;
+
 /**
  * Thin HTTP layer. ONLY responsibility: build the right request and return raw DTOs.
  * No mapping, no error handling UX, no state. Auth and retry are added by interceptors.
@@ -16,19 +19,24 @@ export class PexelsApiService {
   private readonly http = inject(HttpClient);
   private readonly base = environment.apiBaseUrl;
 
-  /** GET /videos/popular?per_page=… */
-  popular(perPage = 15): Observable<PexelsVideoListResponseDto> {
-    const params = new HttpParams().set('per_page', perPage);
+  /** GET /videos/popular?per_page=…&page=… */
+  popular(page = 1, perPage = PER_PAGE): Observable<PexelsVideoListResponseDto> {
+    const params = new HttpParams().set('per_page', perPage).set('page', page);
     return this.http.get<PexelsVideoListResponseDto>(`${this.base}/popular`, {
       params,
     });
   }
 
-  /** GET /videos/search?query=…&per_page=… */
-  search(query: string, perPage = 15): Observable<PexelsVideoListResponseDto> {
+  /** GET /videos/search?query=…&per_page=…&page=… */
+  search(
+    query: string,
+    page = 1,
+    perPage = PER_PAGE,
+  ): Observable<PexelsVideoListResponseDto> {
     const params = new HttpParams()
       .set('query', query)
-      .set('per_page', perPage);
+      .set('per_page', perPage)
+      .set('page', page);
     return this.http.get<PexelsVideoListResponseDto>(`${this.base}/search`, {
       params,
     });

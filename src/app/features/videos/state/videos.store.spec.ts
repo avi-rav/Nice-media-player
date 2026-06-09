@@ -1,6 +1,4 @@
-import {
-  provideHttpClient,
-} from '@angular/common/http';
+import { provideHttpClient } from '@angular/common/http';
 import {
   HttpTestingController,
   provideHttpClientTesting,
@@ -14,9 +12,10 @@ import { NotificationService } from '../../../core/services/notification.service
 import { VideosStore } from './videos.store';
 
 function makeDto(id: number, height = 1080): PexelsVideoDto {
+  const width = Math.round(height * (16 / 9));
   return {
     id,
-    width: height * (16 / 9),
+    width,
     height,
     duration: 20,
     url: `https://www.pexels.com/video/clip-${id}/`,
@@ -27,7 +26,7 @@ function makeDto(id: number, height = 1080): PexelsVideoDto {
         id: id * 10,
         quality: 'hd',
         file_type: 'video/mp4',
-        width: height * (16 / 9),
+        width,
         height,
         fps: 25,
         link: `https://x/${id}.mp4`,
@@ -37,13 +36,17 @@ function makeDto(id: number, height = 1080): PexelsVideoDto {
   };
 }
 
-function listResponse(videos: PexelsVideoDto[]): PexelsVideoListResponseDto {
+function listResponse(
+  videos: PexelsVideoDto[],
+  hasMore = false,
+): PexelsVideoListResponseDto {
   return {
     page: 1,
-    per_page: 15,
+    per_page: 24,
     total_results: videos.length,
     url: '',
     videos,
+    ...(hasMore ? { next_page: 'https://api.pexels.com/...page=2' } : {}),
   };
 }
 
@@ -58,17 +61,19 @@ describe('VideosStore', () => {
       providers: [provideHttpClient(), provideHttpClientTesting()],
     });
     httpMock = TestBed.inject(HttpTestingController);
-    // Avoid stray auto-dismiss timers in fakeAsync.
     TestBed.inject(NotificationService).autoDismissMs = 0;
   });
 
-  /** Inject the store and resolve its initial (onInit) popular load. */
-  function bootstrap(initial: PexelsVideoDto[] = [makeDto(1)]): InstanceType<
-    typeof VideosStore
-  > {
+  /** Inject the store and resolve its initial (debounced) popular load. */
+  function bootstrap(
+    initial: PexelsVideoDto[] = [makeDto(1)],
+    hasMore = false,
+  ): InstanceType<typeof VideosStore> {
     const store = TestBed.inject(VideosStore);
-    tick(300); // debounce window for the initial empty query
-    httpMock.expectOne((r) => r.url === POPULAR).flush(listResponse(initial));
+    tick(300);
+    httpMock
+      .expectOne((r) => r.url === POPULAR)
+      .flush(listResponse(initial, hasMore));
     return store;
   }
 
@@ -79,59 +84,92 @@ describe('VideosStore', () => {
     httpMock.verify();
   }));
 
-  it('debounces keystrokes and only searches the final query', fakeAsync(() => {
+  it('searches via the API, debounced, only for the final query', fakeAsync(() => {
     const store = bootstrap();
 
     store.setQuery('o');
     store.setQuery('oc');
-    store.setQuery('oce');
+    store.setQuery('ocean');
     tick(300);
 
     const reqs = httpMock.match((r) => r.url === SEARCH);
     expect(reqs.length).toBe(1);
-    expect(reqs[0].request.params.get('query')).toBe('oce');
-    reqs[0].flush(listResponse([makeDto(3)]));
+    expect(reqs[0].request.params.get('query')).toBe('ocean');
+    expect(reqs[0].request.params.get('page')).toBe('1');
+    reqs[0].flush(listResponse([makeDto(9)]));
 
     expect(store.status()).toBe('success');
+    expect(store.videos().map((v) => v.id)).toEqual([9]);
     httpMock.verify();
   }));
 
-  it('sets the empty state when a query returns no videos', fakeAsync(() => {
+  it('sets the empty state when a search returns nothing', fakeAsync(() => {
     const store = bootstrap();
-    store.setQuery('nothing-here');
+    store.setQuery('zzz');
     tick(300);
     httpMock.expectOne((r) => r.url === SEARCH).flush(listResponse([]));
     expect(store.status()).toBe('empty');
     httpMock.verify();
   }));
 
-  it('sets the error state and notifies on HTTP failure', fakeAsync(() => {
-    const store = bootstrap();
-    const notifications = TestBed.inject(NotificationService);
+  it('loadMore fetches the next page and appends', fakeAsync(() => {
+    const store = bootstrap([makeDto(1), makeDto(2)], true);
+    expect(store.hasMore()).toBeTrue();
 
-    store.setQuery('boom');
+    store.loadMore();
+    const req = httpMock.expectOne((r) => r.url === POPULAR);
+    expect(req.request.params.get('page')).toBe('2');
+    req.flush(listResponse([makeDto(3)], false));
+
+    expect(store.videos().map((v) => v.id)).toEqual([1, 2, 3]);
+    expect(store.page()).toBe(2);
+    expect(store.hasMore()).toBeFalse();
+    httpMock.verify();
+  }));
+
+  it('de-duplicates videos that overlap between pages', fakeAsync(() => {
+    const store = bootstrap([makeDto(1), makeDto(2)], true);
+
+    store.loadMore();
+    // Page 2 overlaps (id 2 again) and adds id 3.
+    httpMock
+      .expectOne((r) => r.url === POPULAR)
+      .flush(listResponse([makeDto(2), makeDto(3)], false));
+
+    expect(store.videos().map((v) => v.id)).toEqual([1, 2, 3]);
+    httpMock.verify();
+  }));
+
+  it('does not load more when there are no further pages', fakeAsync(() => {
+    const store = bootstrap([makeDto(1)], false);
+    store.loadMore();
+    httpMock.expectNone((r) => r.url === POPULAR);
+    httpMock.verify();
+  }));
+
+  it('filters by resolution client-side without a new request', fakeAsync(() => {
+    const store = bootstrap([makeDto(1, 1080), makeDto(2, 720)]);
+    expect(store.availableResolutions()).toEqual(['1080p', '720p']);
+
+    store.setResolutionFilter('720p');
+    expect(store.filteredVideos().map((v) => v.id)).toEqual([2]);
+
+    httpMock.expectNone((r) => r.url === POPULAR);
+    httpMock.expectNone((r) => r.url === SEARCH);
+    httpMock.verify();
+  }));
+
+  it('sets the error state and notifies on a failed load', fakeAsync(() => {
+    const store = TestBed.inject(VideosStore);
+    const notifications = TestBed.inject(NotificationService);
     tick(300);
     httpMock
-      .expectOne((r) => r.url === SEARCH)
+      .expectOne((r) => r.url === POPULAR)
       .flush('err', { status: 500, statusText: 'Server Error' });
 
     expect(store.status()).toBe('error');
     expect(store.error()).toBeTruthy();
     expect(notifications.notifications().length).toBe(1);
-    httpMock.verify();
-  }));
-
-  it('filters client-side without issuing a new request', fakeAsync(() => {
-    const store = bootstrap([makeDto(1, 1080), makeDto(2, 720)]);
-
-    expect(store.availableResolutions()).toEqual(['1080p', '720p']);
-
-    store.setResolutionFilter('720p');
-    tick(300);
-
-    expect(store.filteredVideos().map((v) => v.id)).toEqual([2]);
-    httpMock.expectNone((r) => r.url === SEARCH);
-    httpMock.expectNone((r) => r.url === POPULAR);
     httpMock.verify();
   }));
 

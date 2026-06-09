@@ -11,6 +11,9 @@ selected video with **custom** controls.
 - **Resolution filter** — narrows the list **client-side** (no extra network request).
 - **Custom player** — play/pause, seek, time, volume/mute, fullscreen, quality switching, all
   keyboard-operable (Space, ←/→, ↑/↓, `m`, `f`).
+- **Watch history** — a History page lists watched videos (poster, position, Finished / Stopped at
+  m:ss) with **Play again** (resumes at the saved time) and **Delete**; persisted to `localStorage`
+  via a `HistoryStore`, so it survives refresh/close.
 - **Explicit states** — loading (skeletons), empty, and error (with **Retry** + toast).
 - **Resilient data** — defensive mapper survives missing/partial/unsorted API data; non-playable
   videos are shown as unavailable.

@@ -22,7 +22,10 @@ import {
   ResolutionFilter,
   ResolutionService,
 } from '../../../core/services/resolution.service';
-import { VideoCatalogService } from '../../../core/services/video-catalog.service';
+import {
+  VideoCatalogService,
+  VideoPage,
+} from '../../../core/services/video-catalog.service';
 import { Video } from '../../../core/models/video.model';
 
 export type VideosStatus =
@@ -39,6 +42,9 @@ interface VideosState {
   videos: Video[];
   error: string | null;
   selectedId: number | null;
+  page: number;
+  hasMore: boolean;
+  loadingMore: boolean;
 }
 
 const initialState: VideosState = {
@@ -48,39 +54,66 @@ const initialState: VideosState = {
   videos: [],
   error: null,
   selectedId: null,
+  page: 1,
+  hasMore: false,
+  loadingMore: false,
 };
 
-/** Debounce window for keyword search (ms). */
+/** Debounce window for the keyword search input (ms). */
 export const SEARCH_DEBOUNCE_MS = 300;
 
 /**
- * Feature store (NgRx SignalStore). Holds state ONLY; all logic lives in injected services.
- * The search pipeline debounces, de-dupes, and uses switchMap so a new query cancels the
- * in-flight request. On failure it surfaces an inline error state AND a toast.
+ * De-duplicate videos by id, keeping first occurrence/order. The Pexels popular feed re-orders
+ * between requests, so consecutive pages can overlap — without this, appended pages show repeats
+ * (and duplicate `@for` track keys would error).
+ */
+function dedupeById(videos: readonly Video[]): Video[] {
+  const seen = new Set<number>();
+  const out: Video[] = [];
+  for (const video of videos) {
+    if (!seen.has(video.id)) {
+      seen.add(video.id);
+      out.push(video);
+    }
+  }
+  return out;
+}
+
+/**
+ * Feature store (NgRx SignalStore). Holds state only; logic lives in services.
+ *
+ * Search is **server-side**: the query is debounced + de-duped and runs through `switchMap`, so a
+ * new query cancels the in-flight request and resets to page 1. **Load more** fetches the next
+ * page from the API and appends. The resolution filter is applied client-side over the loaded
+ * (accumulated) videos via `filteredVideos`.
  */
 export const VideosStore = signalStore(
   { providedIn: 'root' },
   withState(initialState),
 
   withComputed((store, resolution = inject(ResolutionService)) => ({
-    /** Resolutions present in the current result set (drives the filter UI). */
     availableResolutions: computed(() =>
       resolution.availableResolutions(store.videos()),
     ),
-    /** Client-side filtered list — memoized, never triggers a network request. */
+    /** Loaded videos narrowed by the resolution filter (memoized; no network). */
     filteredVideos: computed(() => {
       const filter = store.resolutionFilter();
       return store
         .videos()
         .filter((video) => resolution.matches(video, filter));
     }),
-    /** The currently selected video, if loaded. */
     selectedVideo: computed(() => {
       const id = store.selectedId();
       return id == null
         ? null
         : (store.videos().find((v) => v.id === id) ?? null);
     }),
+    canLoadMore: computed(
+      () =>
+        store.hasMore() &&
+        !store.loadingMore() &&
+        store.status() === 'success',
+    ),
   })),
 
   withMethods(
@@ -90,12 +123,16 @@ export const VideosStore = signalStore(
       errorMapper = inject(ErrorMapperService),
       notifications = inject(NotificationService),
     ) => {
-      const applyResult = (videos: Video[]): void =>
+      const applyPage = (page: VideoPage): void => {
+        const videos = dedupeById(page.videos);
         patchState(store, {
           videos,
+          hasMore: page.hasMore,
+          page: 1,
           status: videos.length > 0 ? 'success' : 'empty',
           error: null,
         });
+      };
 
       const applyError = (error: unknown): void => {
         const message = errorMapper.toMessage(error);
@@ -103,33 +140,61 @@ export const VideosStore = signalStore(
         notifications.error(message);
       };
 
-      // Typing path: debounced + de-duped + cancellable.
+      // First page for a query. Debounced + de-duped + cancellable (typing path).
       const search = rxMethod<string>(
         pipe(
           debounceTime(SEARCH_DEBOUNCE_MS),
           distinctUntilChanged(),
-          tap(() => patchState(store, { status: 'loading', error: null })),
+          tap(() =>
+            patchState(store, { status: 'loading', error: null, page: 1 }),
+          ),
           switchMap((query) =>
             catalog
-              .list(query)
-              .pipe(tapResponse({ next: applyResult, error: applyError })),
+              .list(query, 1)
+              .pipe(tapResponse({ next: applyPage, error: applyError })),
           ),
         ),
       );
 
-      // Retry path: no debounce/distinct so re-running the same query actually fires.
+      // First page without debounce/distinct (retry path — same query must re-fire).
       const reload = rxMethod<string>(
         pipe(
-          tap(() => patchState(store, { status: 'loading', error: null })),
+          tap(() =>
+            patchState(store, { status: 'loading', error: null, page: 1 }),
+          ),
           switchMap((query) =>
             catalog
-              .list(query)
-              .pipe(tapResponse({ next: applyResult, error: applyError })),
+              .list(query, 1)
+              .pipe(tapResponse({ next: applyPage, error: applyError })),
           ),
         ),
       );
 
-      // Deep-link fallback: fetch a single video when it's not already in the store.
+      // Next page — appends to the current list.
+      const loadMore = rxMethod<void>(
+        pipe(
+          tap(() => patchState(store, { loadingMore: true })),
+          switchMap(() => {
+            const nextPage = store.page() + 1;
+            return catalog.list(store.query(), nextPage).pipe(
+              tapResponse({
+                next: (page: VideoPage) =>
+                  patchState(store, {
+                    videos: dedupeById([...store.videos(), ...page.videos]),
+                    hasMore: page.hasMore,
+                    page: nextPage,
+                    loadingMore: false,
+                  }),
+                error: (error: unknown) => {
+                  patchState(store, { loadingMore: false });
+                  notifications.error(errorMapper.toMessage(error));
+                },
+              }),
+            );
+          }),
+        ),
+      );
+
       const fetchById = rxMethod<number>(
         pipe(
           tap(() => patchState(store, { status: 'loading', error: null })),
@@ -142,6 +207,7 @@ export const VideosStore = signalStore(
                       videos: [video],
                       selectedId: video.id,
                       status: 'success',
+                      hasMore: false,
                       error: null,
                     });
                   } else {
@@ -172,7 +238,15 @@ export const VideosStore = signalStore(
         retry(): void {
           reload(store.query());
         },
-        /** Used by the player route: select if present, otherwise fetch by id. */
+        loadMore(): void {
+          if (
+            store.hasMore() &&
+            !store.loadingMore() &&
+            store.status() === 'success'
+          ) {
+            loadMore();
+          }
+        },
         ensureSelected(id: number): void {
           const existing = store.videos().find((v) => v.id === id);
           if (existing) {
@@ -188,7 +262,6 @@ export const VideosStore = signalStore(
 
   withHooks({
     onInit(store): void {
-      // Initial load = popular feed (empty query).
       store.search('');
     },
   }),

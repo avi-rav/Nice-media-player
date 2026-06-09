@@ -31,22 +31,26 @@ export class ResolutionService {
     return '360p';
   }
 
-  /** Distinct resolutions present across the given videos, ordered highest→lowest. */
+  /**
+   * Distinct *max* resolutions across the videos, ordered highest→lowest.
+   * We bucket by each video's best rendition (not every rendition) — otherwise nearly every
+   * video would list every resolution, making the filter useless.
+   */
   availableResolutions(videos: readonly Video[]): ResolutionLabel[] {
     const present = new Set<ResolutionLabel>();
     for (const video of videos) {
-      for (const source of video.sources) {
-        present.add(source.label);
+      if (video.maxResolution) {
+        present.add(video.maxResolution);
       }
     }
     return RESOLUTION_ORDER.filter((label) => present.has(label));
   }
 
-  /** True when the video should be shown under the given filter. */
+  /** True when the video's best resolution matches the filter (or filter is 'all'). */
   matches(video: Video, filter: ResolutionFilter): boolean {
     if (filter === 'all') {
       return true;
     }
-    return video.sources.some((source) => source.label === filter);
+    return video.maxResolution === filter;
   }
 }

@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nice Media Player — Modern Angular Video Experience</title>
+  <meta name="description" content="A production-ready Angular 20 video gallery & player powered by NgRx Signals, defensive data handling, and a custom keyboard-driven player." />
+  <style>
+    :root {
+      --bg: #0f172a;
+      --bg-2: #0b1120;
+      --surface: #1e293b;
+      --surface-2: #334155;
+      --text: #e2e8f0;
+      --text-dim: #94a3b8;
+      --accent: #38bdf8;
+      --accent-2: #818cf8;
+      --danger: #f87171;
+      --success: #34d399;
+      --radius: 0.75rem;
+      --radius-lg: 1.25rem;
+      --maxw: 1180px;
+      --shadow: 0 20px 50px -20px rgba(0, 0, 0, 0.7);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 1.5rem; }
+
+    .eyebrow {
+      display: inline-block;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 0.85rem;
+    }
+
+    h2.section-title {
+      font-size: clamp(1.6rem, 3vw, 2.3rem);
+      line-height: 1.15;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.6rem;
+    }
+
+    .section-lead {
+      color: var(--text-dim);
+      max-width: 60ch;
+      font-size: 1.02rem;
+      margin-bottom: 2.5rem;
+    }
+
+    section { padding: 5rem 0; position: relative; }
+    section + section { border-top: 1px solid rgba(148, 163, 184, 0.08); }
+
+    /* ---------- HERO ---------- */
+    .hero {
+      position: relative;
+      padding: 7rem 0 6rem;
+      background:
+        radial-gradient(1100px 500px at 80% -10%, rgba(56, 189, 248, 0.16), transparent 60%),
+        radial-gradient(900px 500px at 10% 10%, rgba(129, 140, 248, 0.14), transparent 55%),
+        linear-gradient(180deg, var(--bg-2), var(--bg));
+      overflow: hidden;
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 3rem;
+      align-items: center;
+    }
+
+    .hero h1 {
+      font-size: clamp(2.4rem, 5.5vw, 4rem);
+      line-height: 1.05;
+      letter-spacing: -0.03em;
+      margin-bottom: 1.2rem;
+    }
+    .hero h1 .grad {
+      background: linear-gradient(120deg, var(--accent), var(--accent-2));
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero p.tagline {
+      font-size: 1.18rem;
+      color: var(--text-dim);
+      max-width: 52ch;
+      margin-bottom: 2rem;
+    }
+
+    .badges { display: flex; flex-wrap: wrap; gap: 0.55rem; margin-bottom: 2.2rem; }
+    .badge {
+      font-size: 0.78rem;
+      font-weight: 600;
+      padding: 0.4rem 0.85rem;
+      border-radius: 999px;
+      background: rgba(56, 189, 248, 0.1);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      color: var(--accent);
+    }
+
+    .cta-row { display: flex; flex-wrap: wrap; gap: 0.9rem; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      font-weight: 600; font-size: 0.95rem;
+      padding: 0.8rem 1.5rem; border-radius: var(--radius);
+      border: 1px solid transparent; cursor: pointer; transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .btn:hover { text-decoration: none; transform: translateY(-2px); }
+    .btn-primary { background: linear-gradient(120deg, var(--accent), var(--accent-2)); color: #06121f; box-shadow: 0 12px 30px -10px rgba(56, 189, 248, 0.6); }
+    .btn-ghost { background: var(--surface); color: var(--text); border-color: var(--surface-2); }
+
+    /* Mock player card */
+    .mock {
+      background: var(--surface);
+      border: 1px solid var(--surface-2);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .mock-bar { display: flex; gap: 0.4rem; padding: 0.8rem 1rem; background: var(--bg-2); border-bottom: 1px solid var(--surface-2); }
+    .mock-bar span { width: 11px; height: 11px; border-radius: 50%; background: var(--surface-2); }
+    .mock-bar span:nth-child(1) { background: #f87171; }
+    .mock-bar span:nth-child(2) { background: #fbbf24; }
+    .mock-bar span:nth-child(3) { background: #34d399; }
+    .mock-stage {
+      aspect-ratio: 16 / 9;
+      background:
+        radial-gradient(400px 200px at 30% 30%, rgba(56,189,248,0.25), transparent),
+        linear-gradient(135deg, #15233b, #0b1120);
+      display: flex; align-items: center; justify-content: center; position: relative;
+    }
+    .play-circle {
+      width: 70px; height: 70px; border-radius: 50%;
+      background: rgba(56, 189, 248, 0.15); border: 2px solid var(--accent);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .play-circle::after { content: ""; border-style: solid; border-width: 13px 0 13px 21px; border-color: transparent transparent transparent var(--accent); margin-left: 5px; }
+    .mock-controls { display: flex; align-items: center; gap: 0.75rem; padding: 0.85rem 1rem; background: var(--bg-2); }
+    .seek { flex: 1; height: 5px; border-radius: 999px; background: var(--surface-2); position: relative; }
+    .seek::after { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 42%; border-radius: 999px; background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
+    .chip { font-size: 0.72rem; color: var(--text-dim); padding: 0.25rem 0.55rem; border: 1px solid var(--surface-2); border-radius: 6px; }
+
+    /* ---------- STATS ---------- */
+    .stats {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem;
+      background: var(--bg-2); border-top: 1px solid rgba(148,163,184,0.08); border-bottom: 1px solid rgba(148,163,184,0.08);
+    }
+    .stats .wrap { display: contents; }
+    .stats-inner { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; padding: 2.5rem 0; }
+    .stat { text-align: center; }
+    .stat .num { font-size: clamp(1.8rem, 4vw, 2.6rem); font-weight: 800; color: var(--text);
+      background: linear-gradient(120deg, var(--accent), var(--accent-2)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+    .stat .lbl { font-size: 0.85rem; color: var(--text-dim); margin-top: 0.25rem; }
+
+    /* ---------- FEATURE GRID ---------- */
+    .grid { display: grid; gap: 1.25rem; }
+    .grid-3 { grid-template-columns: repeat(3, 1fr); }
+    .grid-2 { grid-template-columns: repeat(2, 1fr); }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--surface-2);
+      border-radius: var(--radius);
+      padding: 1.6rem;
+      transition: border-color 0.2s ease, transform 0.2s ease;
+    }
+    .card:hover { border-color: var(--accent); transform: translateY(-3px); }
+    .card .icon {
+      width: 46px; height: 46px; border-radius: 12px; display: flex; align-items: center; justify-content: center;
+      background: rgba(56, 189, 248, 0.12); margin-bottom: 1rem; font-size: 1.4rem;
+    }
+    .card h3 { font-size: 1.08rem; margin-bottom: 0.45rem; }
+    .card p { color: var(--text-dim); font-size: 0.93rem; }
+
+    /* ---------- ARCHITECTURE ---------- */
+    .arch { background: var(--bg-2); }
+    .arch-diagram {
+      display: flex; flex-direction: column; gap: 1rem; align-items: center;
+    }
+    .layer {
+      width: 100%;
+      border: 1px solid var(--surface-2);
+      border-radius: var(--radius);
+      padding: 1.2rem 1.4rem;
+      background: var(--surface);
+      position: relative;
+    }
+    .layer-head { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.9rem; }
+    .layer-head .tag {
+      font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.12em; font-weight: 700;
+      padding: 0.25rem 0.6rem; border-radius: 6px; color: #06121f;
+    }
+    .tag.t-ui { background: var(--accent); }
+    .tag.t-state { background: var(--accent-2); }
+    .tag.t-service { background: var(--success); }
+    .tag.t-http { background: #fbbf24; }
+    .layer-head h4 { font-size: 1rem; }
+    .nodes { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+    .node {
+      font-size: 0.82rem; font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      padding: 0.5rem 0.85rem; border-radius: 8px;
+      background: var(--bg-2); border: 1px solid var(--surface-2); color: var(--text);
+    }
+    .node small { display: block; font-family: system-ui, sans-serif; color: var(--text-dim); font-size: 0.72rem; margin-top: 0.15rem; }
+    .arrow { color: var(--text-dim); font-size: 1.4rem; line-height: 1; }
+
+    /* ---------- COMPONENTS TABLE ---------- */
+    .table-card { background: var(--surface); border: 1px solid var(--surface-2); border-radius: var(--radius); overflow: hidden; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 0.9rem 1.1rem; font-size: 0.9rem; }
+    thead th { background: var(--bg-2); color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.72rem; }
+    tbody tr { border-top: 1px solid rgba(148,163,184,0.08); }
+    tbody tr:hover { background: rgba(56,189,248,0.04); }
+    td code { font-family: ui-monospace, Menlo, monospace; font-size: 0.82rem; color: var(--accent); }
+    .pill { font-size: 0.7rem; font-weight: 700; padding: 0.2rem 0.55rem; border-radius: 999px; }
+    .pill.smart { background: rgba(129,140,248,0.15); color: var(--accent-2); }
+    .pill.ui { background: rgba(56,189,248,0.15); color: var(--accent); }
+
+    /* ---------- SERVICES ---------- */
+    .svc { display: flex; gap: 1rem; align-items: flex-start; }
+    .svc .dot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); margin-top: 0.55rem; box-shadow: 0 0 0 4px rgba(56,189,248,0.12); }
+    .svc h4 { font-size: 1rem; margin-bottom: 0.2rem; }
+    .svc h4 code { color: var(--text); font-family: ui-monospace, Menlo, monospace; font-size: 0.95rem; }
+    .svc p { color: var(--text-dim); font-size: 0.9rem; }
+
+    /* ---------- TECH ---------- */
+    .tech { background: var(--bg-2); }
+    .tech-list { display: flex; flex-wrap: wrap; gap: 0.7rem; }
+    .tech-item {
+      display: flex; align-items: center; gap: 0.5rem;
+      padding: 0.65rem 1.1rem; background: var(--surface); border: 1px solid var(--surface-2);
+      border-radius: 999px; font-weight: 600; font-size: 0.9rem;
+    }
+    .tech-item .d { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+
+    /* ---------- FOOTER ---------- */
+    footer { padding: 3.5rem 0; text-align: center; color: var(--text-dim); background: var(--bg-2); border-top: 1px solid rgba(148,163,184,0.08); }
+    footer .logo { font-weight: 800; font-size: 1.15rem; color: var(--text); margin-bottom: 0.4rem; }
+    footer a { margin: 0 0.5rem; }
+
+    /* nav */
+    .topnav { position: sticky; top: 0; z-index: 50; backdrop-filter: blur(12px); background: rgba(11,17,32,0.7); border-bottom: 1px solid rgba(148,163,184,0.08); }
+    .topnav .wrap { display: flex; align-items: center; justify-content: space-between; padding-top: 1rem; padding-bottom: 1rem; }
+    .topnav .brand { display: flex; align-items: center; gap: 0.6rem; font-weight: 800; }
+    .topnav .brand .mark { width: 28px; height: 28px; border-radius: 8px; background: linear-gradient(120deg, var(--accent), var(--accent-2)); display: flex; align-items: center; justify-content: center; }
+    .topnav .brand .mark::after { content: ""; border-style: solid; border-width: 6px 0 6px 10px; border-color: transparent transparent transparent #06121f; margin-left: 2px; }
+    .topnav nav { display: flex; gap: 1.5rem; font-size: 0.9rem; }
+    .topnav nav a { color: var(--text-dim); }
+    .topnav nav a:hover { color: var(--text); text-decoration: none; }
+
+    @media (max-width: 860px) {
+      .hero-grid { grid-template-columns: 1fr; }
+      .grid-3, .grid-2 { grid-template-columns: 1fr; }
+      .stats-inner { grid-template-columns: repeat(2, 1fr); }
+      .topnav nav { display: none; }
+      td:nth-child(3), th:nth-child(3) { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAV -->
+  <header class="topnav">
+    <div class="wrap">
+      <div class="brand"><span class="mark"></span> Nice Media Player</div>
+      <nav>
+        <a href="#features">Features</a>
+        <a href="#architecture">Architecture</a>
+        <a href="#components">Components</a>
+        <a href="#services">Services</a>
+        <a href="#tech">Tech</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div>
+        <span class="eyebrow">Angular 20 · NgRx Signals</span>
+        <h1>A <span class="grad">beautifully engineered</span> video player for the modern web.</h1>
+        <p class="tagline">
+          Nice Media Player is a production-ready video gallery and custom player powered by the Pexels API —
+          built with standalone components, signal-based state, and defensive data handling that never crashes on bad input.
+        </p>
+        <div class="badges">
+          <span class="badge">⚡ OnPush everywhere</span>
+          <span class="badge">🎯 100% typed</span>
+          <span class="badge">♿ Accessible</span>
+          <span class="badge">🔒 Secure API key</span>
+          <span class="badge">🧪 28 unit specs</span>
+        </div>
+        <div class="cta-row">
+          <a class="btn btn-primary" href="#features">Explore the build →</a>
+          <a class="btn btn-ghost" href="#architecture">See the architecture</a>
+        </div>
+      </div>
+
+      <!-- Mock player -->
+      <div class="mock" aria-hidden="true">
+        <div class="mock-bar"><span></span><span></span><span></span></div>
+        <div class="mock-stage"><div class="play-circle"></div></div>
+        <div class="mock-controls">
+          <div class="seek"></div>
+          <span class="chip">1080p</span>
+          <span class="chip">2:14 / 5:08</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- STATS -->
+  <div class="stats">
+    <div class="wrap">
+      <div class="stats-inner">
+        <div class="stat"><div class="num">6</div><div class="lbl">Focused services</div></div>
+        <div class="stat"><div class="num">2</div><div class="lbl">Signal stores</div></div>
+        <div class="stat"><div class="num">8+</div><div class="lbl">Keyboard shortcuts</div></div>
+        <div class="stat"><div class="num">0</div><div class="lbl"><code>any</code> types</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FEATURES -->
+  <section id="features">
+    <div class="wrap">
+      <span class="eyebrow">What it does</span>
+      <h2 class="section-title">Everything you'd expect — done right.</h2>
+      <p class="section-lead">From a debounced search pipeline to a fully keyboard-driven player and persistent watch history, every feature is built with performance and resilience in mind.</p>
+
+      <div class="grid grid-3">
+        <div class="card">
+          <div class="icon">🎬</div>
+          <h3>Custom Video Player</h3>
+          <p>Hand-built controls with play/pause, seek bar, volume, fullscreen and on-the-fly quality switching that preserves your playback position.</p>
+        </div>
+        <div class="card">
+          <div class="icon">⌨️</div>
+          <h3>Keyboard First</h3>
+          <p>Space/k to toggle, arrows to seek and adjust volume, <code>m</code> to mute, <code>f</code> for fullscreen — all with proper ARIA labels.</p>
+        </div>
+        <div class="card">
+          <div class="icon">🔍</div>
+          <h3>Debounced Search</h3>
+          <p>300ms debounce → distinctUntilChanged → switchMap cancels in-flight requests. Client-side matching on title &amp; author with no extra calls.</p>
+        </div>
+        <div class="card">
+          <div class="icon">🎚️</div>
+          <h3>Resolution Filtering</h3>
+          <p>Buckets videos by true max resolution derived from pixel height — not the unreliable API <code>quality</code> field — updating instantly via computed signals.</p>
+        </div>
+        <div class="card">
+          <div class="icon">🕒</div>
+          <h3>Watch History</h3>
+          <p>Persisted to localStorage with resume position and finished/stopped status. Play again, resume, or clear — sorted most-recent first.</p>
+        </div>
+        <div class="card">
+          <div class="icon">🛡️</div>
+          <h3>Defensive Mapping</h3>
+          <p>Untrusted API data is normalized through a mapper that skips broken records instead of crashing the page. Graceful degradation throughout.</p>
+        </div>
+        <div class="card">
+          <div class="icon">🔁</div>
+          <h3>Smart Retries</h3>
+          <p>HTTP interceptor retries only transient 429/5xx failures with exponential backoff, and fails fast on 4xx where retrying is pointless.</p>
+        </div>
+        <div class="card">
+          <div class="icon">🔔</div>
+          <h3>Toast Notifications</h3>
+          <p>Signals-based notification queue rendered in an <code>aria-live</code> region, with friendly messages mapped from raw HTTP errors.</p>
+        </div>
+        <div class="card">
+          <div class="icon">🔐</div>
+          <h3>Secure by Design</h3>
+          <p>The Pexels API key is injected server-side by a proxy/BFF — never bundled into the client. Runtime config token seeds tokens without code changes.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ARCHITECTURE -->
+  <section id="architecture" class="arch">
+    <div class="wrap">
+      <span class="eyebrow">Under the hood</span>
+      <h2 class="section-title">A clean, layered architecture.</h2>
+      <p class="section-lead">DTOs (the wire shape) are kept strictly separate from domain models. Components only ever touch normalized data, and every layer has a single, well-defined responsibility.</p>
+
+      <div class="arch-diagram">
+        <!-- UI -->
+        <div class="layer">
+          <div class="layer-head"><span class="tag t-ui">UI Layer</span><h4>Pages &amp; Shared Components</h4></div>
+          <div class="nodes">
+            <div class="node">App <small>Root · header · router-outlet</small></div>
+            <div class="node">VideoListPage <small>Gallery grid · search · filter</small></div>
+            <div class="node">VideoPlayerPage <small>Custom player</small></div>
+            <div class="node">HistoryPage <small>Watched list</small></div>
+            <div class="node">ToastComponent <small>aria-live notifications</small></div>
+          </div>
+        </div>
+
+        <div class="arrow">↓</div>
+
+        <!-- STATE -->
+        <div class="layer">
+          <div class="layer-head"><span class="tag t-state">State Layer</span><h4>NgRx SignalStore</h4></div>
+          <div class="nodes">
+            <div class="node">VideosStore <small>query · filter · status · computed feeds</small></div>
+            <div class="node">HistoryStore <small>localStorage-backed entries</small></div>
+          </div>
+        </div>
+
+        <div class="arrow">↓</div>
+
+        <!-- SERVICES -->
+        <div class="layer">
+          <div class="layer-head"><span class="tag t-service">Service Layer</span><h4>Business Logic</h4></div>
+          <div class="nodes">
+            <div class="node">VideoCatalogService <small>orchestration</small></div>
+            <div class="node">VideoMapperService <small>DTO → domain</small></div>
+            <div class="node">ResolutionService <small>pure resolution logic</small></div>
+            <div class="node">NotificationService <small>signals queue</small></div>
+            <div class="node">ErrorMapperService <small>error → message</small></div>
+          </div>
+        </div>
+
+        <div class="arrow">↓</div>
+
+        <!-- HTTP -->
+        <div class="layer">
+          <div class="layer-head"><span class="tag t-http">HTTP Layer</span><h4>Pexels API &amp; Interceptors</h4></div>
+          <div class="nodes">
+            <div class="node">PexelsApiService <small>popular · search · getById</small></div>
+            <div class="node">pexels-auth.interceptor <small>attaches token</small></div>
+            <div class="node">retry.interceptor <small>2× exp backoff on 429/5xx</small></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- COMPONENTS -->
+  <section id="components">
+    <div class="wrap">
+      <span class="eyebrow">Building blocks</span>
+      <h2 class="section-title">Components</h2>
+      <p class="section-lead">Standalone, OnPush components organized by feature. Smart pages own state and orchestration; shared UI stays presentational.</p>
+
+      <div class="table-card">
+        <table>
+          <thead>
+            <tr><th>Component</th><th>Type</th><th>Path</th><th>Responsibility</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>App</strong></td>
+              <td><span class="pill smart">Smart</span></td>
+              <td><code>app.ts</code></td>
+              <td>Root shell — header navigation, router outlet, global toast container.</td>
+            </tr>
+            <tr>
+              <td><strong>VideoListPage</strong></td>
+              <td><span class="pill smart">Smart</span></td>
+              <td><code>features/videos/pages/video-list</code></td>
+              <td>Gallery grid of video cards, debounced search input, resolution filter.</td>
+            </tr>
+            <tr>
+              <td><strong>VideoPlayerPage</strong></td>
+              <td><span class="pill smart">Smart</span></td>
+              <td><code>features/videos/pages/video-player</code></td>
+              <td>Custom player — full controls, keyboard shortcuts, quality switch, history tracking.</td>
+            </tr>
+            <tr>
+              <td><strong>HistoryPage</strong></td>
+              <td><span class="pill smart">Smart</span></td>
+              <td><code>features/history/pages/history</code></td>
+              <td>Lists watched videos with resume position, play-again and delete actions.</td>
+            </tr>
+            <tr>
+              <td><strong>ToastComponent</strong></td>
+              <td><span class="pill ui">UI</span></td>
+              <td><code>shared/ui/toast</code></td>
+              <td>Notifications rendered in an aria-live region (errors &amp; info).</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- SERVICES -->
+  <section id="services" class="arch">
+    <div class="wrap">
+      <span class="eyebrow">Single responsibilities</span>
+      <h2 class="section-title">Services</h2>
+      <p class="section-lead">Each service does exactly one thing well — from a thin HTTP client to pure resolution math, with orchestration kept separate from I/O.</p>
+
+      <div class="grid grid-2">
+        <div class="card svc"><span class="dot"></span><div>
+          <h4><code>PexelsApiService</code></h4>
+          <p>Thin HTTP layer. Calls <code>popular()</code>, <code>search()</code> and <code>getById()</code> and returns raw DTOs only — no mapping, no error handling.</p>
+        </div></div>
+        <div class="card svc"><span class="dot"></span><div>
+          <h4><code>VideoCatalogService</code></h4>
+          <p>Orchestration. Chooses popular-vs-search based on the query, applies the mapper, and returns normalized <code>Video[]</code> domain objects.</p>
+        </div></div>
+        <div class="card svc"><span class="dot"></span><div>
+          <h4><code>VideoMapperService</code></h4>
+          <p>Defensive DTO→domain normalization. Handles null/malformed fields, derives resolution labels, filters to playable mp4 sources and dedupes by label.</p>
+        </div></div>
+        <div class="card svc"><span class="dot"></span><div>
+          <h4><code>ResolutionService</code></h4>
+          <p>Pure resolution logic. Maps pixel height to labels (4K → 360p), computes distinct available resolutions and filters videos by bucket.</p>
+        </div></div>
+        <div class="card svc"><span class="dot"></span><div>
+          <h4><code>NotificationService</code></h4>
+          <p>Signals-based notification queue. <code>notify()</code>, <code>error()</code>, <code>dismiss()</code> with auto-dismiss and a read-only signal view.</p>
+        </div></div>
+        <div class="card svc"><span class="dot"></span><div>
+          <h4><code>ErrorMapperService</code></h4>
+          <p>HTTP error translation. Turns status codes (401, 429, 5xx…) into clear, user-friendly messages for the toast system.</p>
+        </div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DATA MODEL -->
+  <section id="model">
+    <div class="wrap">
+      <span class="eyebrow">Typed end-to-end</span>
+      <h2 class="section-title">Strict separation of DTOs &amp; domain models.</h2>
+      <p class="section-lead">The wire format never leaks into the UI. Raw Pexels DTOs are mapped into clean domain models the rest of the app can trust.</p>
+
+      <div class="grid grid-2">
+        <div class="card">
+          <div class="icon">📡</div>
+          <h3>API DTOs <small style="color:var(--text-dim);font-weight:400">(wire format)</small></h3>
+          <p style="margin-top:0.6rem">
+            <code style="color:var(--accent)">PexelsVideoDto</code>,
+            <code style="color:var(--accent)">PexelsVideoFileDto</code>,
+            <code style="color:var(--accent)">PexelsVideoPictureDto</code>,
+            <code style="color:var(--accent)">PexelsUserDto</code>,
+            <code style="color:var(--accent)">PexelsVideoListResponseDto</code>
+            — nullable, unreliable fields treated as untrusted input.
+          </p>
+        </div>
+        <div class="card">
+          <div class="icon">✅</div>
+          <h3>Domain Models <small style="color:var(--text-dim);font-weight:400">(app-facing)</small></h3>
+          <p style="margin-top:0.6rem">
+            <code style="color:var(--success)">Video</code>,
+            <code style="color:var(--success)">VideoSource</code>,
+            <code style="color:var(--success)">ResolutionLabel</code>,
+            <code style="color:var(--success)">HistoryEntry</code>,
+            <code style="color:var(--success)">HistoryStatus</code>
+            — normalized, non-null where it matters, with a <code>playable</code> flag.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TECH STACK -->
+  <section id="tech" class="tech">
+    <div class="wrap">
+      <span class="eyebrow">Built with</span>
+      <h2 class="section-title">A modern Angular stack.</h2>
+      <p class="section-lead">Latest Angular with standalone components, signal-based state, and reactive pipelines — tested headlessly in CI.</p>
+
+      <div class="tech-list">
+        <span class="tech-item"><span class="d"></span>Angular 20</span>
+        <span class="tech-item"><span class="d"></span>NgRx Signals 20</span>
+        <span class="tech-item"><span class="d"></span>RxJS 7.8</span>
+        <span class="tech-item"><span class="d"></span>TypeScript 5.9</span>
+        <span class="tech-item"><span class="d"></span>SCSS</span>
+        <span class="tech-item"><span class="d"></span>Pexels Videos API</span>
+        <span class="tech-item"><span class="d"></span>Karma + Jasmine</span>
+        <span class="tech-item"><span class="d"></span>Standalone Components</span>
+        <span class="tech-item"><span class="d"></span>Lazy Routing</span>
+        <span class="tech-item"><span class="d"></span>OnPush Change Detection</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="wrap">
+      <div class="logo">🎬 Nice Media Player</div>
+      <p>A production-ready Angular 20 video experience — architecture, accessibility, and engineering you can build on.</p>
+      <p style="margin-top:1rem;font-size:0.85rem;">
+        <a href="#features">Features</a> ·
+        <a href="#architecture">Architecture</a> ·
+        <a href="#components">Components</a> ·
+        <a href="#services">Services</a>
+      </p>
+    </div>
+  </footer>
+
+</body>
+</html>

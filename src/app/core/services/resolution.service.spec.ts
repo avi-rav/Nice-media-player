@@ -52,13 +52,10 @@ describe('ResolutionService', () => {
   });
 
   describe('availableResolutions', () => {
-    it('returns the distinct union ordered highest→lowest', () => {
+    it('returns the distinct best-resolutions ordered highest→lowest', () => {
+      // videoWith() sets maxResolution to the first label.
       const videos = [videoWith(['720p', '360p']), videoWith(['1080p', '720p'])];
-      expect(service.availableResolutions(videos)).toEqual([
-        '1080p',
-        '720p',
-        '360p',
-      ]);
+      expect(service.availableResolutions(videos)).toEqual(['1080p', '720p']);
     });
 
     it('returns empty for no sources', () => {
@@ -67,15 +64,15 @@ describe('ResolutionService', () => {
   });
 
   describe('matches', () => {
-    const video = videoWith(['1080p', '480p']);
+    const video = videoWith(['1080p', '480p']); // best = 1080p
 
     it('matches everything for "all"', () => {
       expect(service.matches(video, 'all')).toBeTrue();
     });
 
-    it('matches only when a source has the label', () => {
+    it('matches only the video’s best resolution', () => {
       expect(service.matches(video, '1080p')).toBeTrue();
-      expect(service.matches(video, '480p')).toBeTrue();
+      expect(service.matches(video, '480p')).toBeFalse();
       expect(service.matches(video, '720p')).toBeFalse();
     });
   });

@@ -194,6 +194,17 @@
   color: #04293a;
   font-weight: 600;
   cursor: pointer;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: progress;
+  }
+}
+
+.load-more {
+  display: flex;
+  justify-content: center;
+  margin: 1.75rem 0 0.5rem;
 }
 
 @media (max-width: 560px) {
