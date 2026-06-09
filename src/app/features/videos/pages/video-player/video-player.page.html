@@ -1,0 +1,129 @@
+<a class="back" routerLink="/videos">← Back to videos</a>
+
+@switch (status()) {
+  @case ('loading') {
+    <div class="player-loading" role="status">Loading video…</div>
+  }
+  @case ('error') {
+    <div class="state state--error" role="alert">
+      <h2>Couldn’t load this video</h2>
+      <p>{{ store.error() }}</p>
+      <a class="btn" routerLink="/videos">Back to videos</a>
+    </div>
+  }
+  @default {
+    @if (video(); as v) {
+      <h1 class="title">{{ v.title }}</h1>
+      <p class="byline">by {{ v.authorName }}</p>
+
+      @if (currentSource(); as src) {
+        <div
+          #stage
+          class="stage"
+          tabindex="0"
+          role="group"
+          aria-label="Video player. Space to play or pause, arrow keys to seek and adjust volume, m to mute, f for fullscreen."
+          (keydown)="onKeydown($event)"
+        >
+          <video
+            #player
+            class="stage__video"
+            [src]="src.link"
+            [poster]="v.posterUrl ?? ''"
+            (click)="togglePlay()"
+            (play)="isPlaying.set(true)"
+            (pause)="isPlaying.set(false)"
+            (loadedmetadata)="onLoadedMetadata()"
+            (timeupdate)="onTimeUpdate()"
+            (volumechange)="onVolumeChange()"
+            playsinline
+          ></video>
+
+          <div class="controls">
+            <button
+              type="button"
+              class="controls__btn"
+              [attr.aria-label]="isPlaying() ? 'Pause' : 'Play'"
+              (click)="togglePlay()"
+            >
+              {{ isPlaying() ? '⏸' : '▶' }}
+            </button>
+
+            <span class="controls__time">
+              {{ currentTime() | duration }} / {{ duration() | duration }}
+            </span>
+
+            <input
+              type="range"
+              class="controls__seek"
+              min="0"
+              [max]="duration() || 0"
+              step="0.1"
+              [value]="currentTime()"
+              aria-label="Seek"
+              [attr.aria-valuemin]="0"
+              [attr.aria-valuemax]="duration() || 0"
+              [attr.aria-valuenow]="currentTime()"
+              (input)="onSeek($event)"
+            />
+
+            <button
+              type="button"
+              class="controls__btn"
+              [attr.aria-label]="muted() ? 'Unmute' : 'Mute'"
+              (click)="toggleMute()"
+            >
+              {{ muted() ? '🔇' : '🔊' }}
+            </button>
+
+            <input
+              type="range"
+              class="controls__volume"
+              min="0"
+              max="1"
+              step="0.05"
+              [value]="muted() ? 0 : volume()"
+              aria-label="Volume"
+              (input)="onVolume($event)"
+            />
+
+            @if (v.sources.length > 1) {
+              <label class="controls__quality">
+                <span class="visually-hidden">Quality</span>
+                <select
+                  aria-label="Video quality"
+                  (change)="selectQuality(+$any($event.target).value)"
+                >
+                  @for (s of v.sources; track s.id; let i = $index) {
+                    <option [value]="i" [selected]="isCurrentQuality(i)">
+                      {{ s.label }}
+                    </option>
+                  }
+                </select>
+              </label>
+            }
+
+            <button
+              type="button"
+              class="controls__btn"
+              aria-label="Fullscreen"
+              (click)="toggleFullscreen()"
+            >
+              ⛶
+            </button>
+          </div>
+        </div>
+      } @else {
+        <div class="state state--empty">
+          <h2>This video has no playable source</h2>
+          <a class="btn" routerLink="/videos">Back to videos</a>
+        </div>
+      }
+    } @else {
+      <div class="state state--empty">
+        <h2>Video not found</h2>
+        <a class="btn" routerLink="/videos">Back to videos</a>
+      </div>
+    }
+  }
+}

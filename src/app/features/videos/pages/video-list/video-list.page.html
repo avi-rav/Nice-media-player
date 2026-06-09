@@ -1,0 +1,116 @@
+<section class="controls">
+  <div class="search">
+    <label for="search" class="search__label">Search videos</label>
+    <input
+      id="search"
+      type="search"
+      class="search__input"
+      role="searchbox"
+      placeholder="Search by keyword (e.g. ocean, city, nature)…"
+      [value]="store.query()"
+      [attr.aria-busy]="store.status() === 'loading'"
+      (input)="onSearch($event)"
+    />
+  </div>
+
+  @if (store.availableResolutions().length > 0) {
+    <div class="filter">
+      <label for="resolution">Resolution</label>
+      <select
+        id="resolution"
+        class="filter__select"
+        [value]="store.resolutionFilter()"
+        (change)="onFilterChange($event)"
+      >
+        <option value="all">All resolutions</option>
+        @for (res of store.availableResolutions(); track res) {
+          <option [value]="res">{{ res }}</option>
+        }
+      </select>
+    </div>
+  }
+</section>
+
+<section class="results" aria-live="polite">
+  @switch (store.status()) {
+    @case ('loading') {
+      <div class="grid" aria-hidden="true">
+        @for (n of [1, 2, 3, 4, 5, 6, 7, 8]; track n) {
+          <div class="card card--skeleton"></div>
+        }
+      </div>
+      <p class="visually-hidden">Loading videos…</p>
+    }
+
+    @case ('error') {
+      <div class="state state--error" role="alert">
+        <h2>Something went wrong</h2>
+        <p>{{ store.error() }}</p>
+        <button type="button" class="btn" (click)="store.retry()">Retry</button>
+      </div>
+    }
+
+    @case ('empty') {
+      <div class="state state--empty">
+        <h2>No videos found</h2>
+        <p>Try a different keyword.</p>
+      </div>
+    }
+
+    @default {
+      @if (store.filteredVideos().length === 0) {
+        <div class="state state--empty">
+          <h2>No matches for this resolution</h2>
+          <p>Choose “All resolutions” to see everything.</p>
+        </div>
+      } @else {
+        <ul class="grid" role="list">
+          @for (video of store.filteredVideos(); track video.id) {
+            <li class="grid__item">
+              <a
+                class="card"
+                [class.card--disabled]="!video.playable"
+                [routerLink]="video.playable ? ['/videos', video.id] : null"
+                [attr.aria-disabled]="!video.playable"
+                [attr.tabindex]="video.playable ? 0 : -1"
+                [attr.aria-label]="
+                  'Play ' +
+                  video.title +
+                  ' by ' +
+                  video.authorName +
+                  (video.maxResolution ? ', up to ' + video.maxResolution : '')
+                "
+              >
+                <div class="card__poster">
+                  @if (video.posterUrl) {
+                    <img
+                      [src]="video.posterUrl"
+                      [alt]="''"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  } @else {
+                    <div class="card__poster-fallback" aria-hidden="true">🎞️</div>
+                  }
+                  @if (video.durationSec !== null) {
+                    <span class="card__duration">{{ video.durationSec | duration }}</span>
+                  }
+                  @if (video.maxResolution) {
+                    <span class="card__res">{{ video.maxResolution }}</span>
+                  }
+                  @if (!video.playable) {
+                    <span class="card__unavailable">Unavailable</span>
+                  }
+                </div>
+                <div class="card__body">
+                  <span class="card__title">{{ video.title }}</span>
+                  <span class="card__author">{{ video.authorName }}</span>
+                </div>
+              </a>
+            </li>
+          }
+        </ul>
+      }
+    }
+  }
+</section>
