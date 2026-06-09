@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nice Media Player — Test Report</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface-alt: #222633;
+      --border: #2d3245;
+      --text: #e4e6ed;
+      --text-muted: #8b90a0;
+      --accent: #6c63ff;
+      --accent-light: #8b84ff;
+      --green: #4caf50;
+      --green-bg: #1a3d1f;
+      --amber: #ffc107;
+      --red: #f44336;
+      --radius: 10px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      padding: 2rem;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 0.25rem;
+      background: linear-gradient(135deg, var(--accent), #a78bfa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      margin-bottom: 2rem;
+    }
+
+    /* Summary Cards */
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2.5rem;
+    }
+
+    .summary-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      text-align: center;
+    }
+
+    .summary-card__number {
+      font-size: 2.25rem;
+      font-weight: 700;
+      color: var(--green);
+    }
+
+    .summary-card__label {
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 0;
+      border-bottom: 2px solid var(--border);
+      margin-bottom: 2rem;
+    }
+
+    .tab {
+      padding: 0.75rem 1.5rem;
+      cursor: pointer;
+      border: none;
+      background: none;
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      font-weight: 500;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: all 0.2s;
+    }
+
+    .tab:hover { color: var(--text); }
+    .tab.active {
+      color: var(--accent-light);
+      border-bottom-color: var(--accent);
+    }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* Sections */
+    .section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 1.5rem;
+      overflow: hidden;
+    }
+
+    .section__header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 1.25rem;
+      background: var(--surface-alt);
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .section__header:hover { background: #282d3d; }
+
+    .section__title {
+      font-size: 1rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .section__file {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      font-family: 'Fira Code', 'Cascadia Code', monospace;
+    }
+
+    .section__badge {
+      font-size: 0.75rem;
+      padding: 0.2rem 0.6rem;
+      border-radius: 20px;
+      background: var(--green-bg);
+      color: var(--green);
+      font-weight: 600;
+    }
+
+    .section__body { padding: 0; }
+
+    /* Table */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+
+    thead { background: var(--surface-alt); }
+
+    th {
+      text-align: left;
+      padding: 0.6rem 1.25rem;
+      color: var(--text-muted);
+      font-weight: 500;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    td {
+      padding: 0.6rem 1.25rem;
+      border-top: 1px solid var(--border);
+    }
+
+    tr:hover td { background: rgba(108, 99, 255, 0.04); }
+
+    .status { font-size: 1.1rem; text-align: center; width: 60px; }
+    .duration {
+      color: var(--text-muted);
+      font-family: monospace;
+      font-size: 0.85rem;
+      width: 80px;
+    }
+
+    /* Footer */
+    .footer {
+      margin-top: 3rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+    }
+
+    .commands {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-top: 2rem;
+    }
+
+    .commands h3 {
+      font-size: 1rem;
+      margin-bottom: 0.75rem;
+      color: var(--text);
+    }
+
+    .commands code {
+      display: block;
+      font-family: 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 0.85rem;
+      color: var(--accent-light);
+      padding: 0.3rem 0;
+    }
+
+    .commands .comment {
+      color: var(--text-muted);
+    }
+
+    @media (max-width: 600px) {
+      body { padding: 1rem; }
+      .summary { grid-template-columns: 1fr 1fr; }
+      th, td { padding: 0.5rem 0.75rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🎬 Nice Media Player — Test Report</h1>
+  <p class="subtitle">Generated June 9, 2026 · Angular 20 + NgRx Signals · All tests passing</p>
+
+  <!-- Summary -->
+  <div class="summary">
+    <div class="summary-card">
+      <div class="summary-card__number">145</div>
+      <div class="summary-card__label">Total Tests</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-card__number" style="color: var(--green);">145</div>
+      <div class="summary-card__label">Passed</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-card__number" style="color: var(--red);">0</div>
+      <div class="summary-card__label">Failed</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-card__number" style="color: var(--text);">30s</div>
+      <div class="summary-card__label">Total Duration</div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('unit')">Unit Tests (95)</button>
+    <button class="tab" onclick="switchTab('integration')">Integration Tests (39)</button>
+    <button class="tab" onclick="switchTab('e2e')">E2E Tests (11)</button>
+  </div>
+
+  <!-- Unit Tests -->
+  <div id="tab-unit" class="tab-content active">
+
+    <!-- App Shell -->
+    <div class="section">
+      <div class="section__header" onclick="toggleSection(this)">
+        <div class="section__title">🏠 App Shell <span class="section__file">app.spec.ts</span></div>
+        <span class="section__badge">7 / 7 ✓</span>
+      </div>
+      <div class="section__body">
+        <table>
+          <thead><tr><th>Status</th><th>Test</th></tr></thead>
+          <tbody>
+            <tr><td class="status">✅</td><td>should create the component</td></tr>
+            <tr><td class="status">✅</td><td>should render the brand link</td></tr>
+            <tr><td class="status">✅</td><td>should have a skip-to-content link</td></tr>
+            <tr><td class="status">✅</td><td>should render navigation links for Browse and History</td></tr>
+            <tr><td class="status">✅</td><td>should contain a router-outlet</td></tr>
+            <tr><td class="status">✅</td><td>should contain the toast component</td></tr>
+            <tr><td class="status">✅</td><td>should have a main element with id "main"</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Retry Interceptor -->
+    <div class="section">
+      <div class="section__header" onclick="toggleSection(this)">
+        <div class="section__title">🔄 Retry Interceptor <span class="section__file">retry.interceptor.spec.ts</span></div>
+        <span class="section__badge">4 / 4 ✓</span>
+      </div>
+      <div class="section__body">
+        <table>
+          <thead><tr><th>Status</th><th>Test</th></tr></thead>
+          <tbody>
+            <tr><td class="status">✅</td><td>retries a 500 up to MAX_RETRIES then errors</td></tr>
+            <tr><td class="status">✅</td><td>retries a 429 (rate limit)</td></tr>
+            <tr><td class="status">✅</td><td>does NOT retry a 4xx (fails fast)</td></tr>
+            <tr><td class="status">✅</td><td>succeeds without retry on 200</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Resolution Service -->
+    <div class="section">
+      <div class="section__header" onclick="toggleSection(this)">
+        <div class="section__title">📐 Resolution Service <span class="section__file">resolution.service.spec.ts</span></div>
+        <span class="section__badge">6 / 6 ✓</span>
+      </div>
+      <div class="section__body">
+        <table>
+          <thead><tr><th>Status</th><th>Test</th></tr></thead>
+          <tbody>
+            <tr><td class="status">✅</td><td>labelForHeight — maps heights to labels at the right boundaries</td></tr>
+            <tr><td class="status">✅</td><td>labelForHeight — returns null for invalid heights</td></tr>
+            <tr><td class="status">✅</td><td>availableResolutions — returns distinct best-resolutions ordered highest→lowest</td></tr>
+            <tr><td class="status">✅</td><td>availableResolutions — returns empty for no sources</td></tr>
+            <tr><td class="status">✅</td><td>matches — matches everything for "all"</td></tr>
+            <tr><td class="status">✅</td><td>matches — matches only the video's best resolution</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Video Mapper Service -->
+    <div class="section">
+      <div class="section__header" onclick="toggleSection(this)">
+        <div class="section__title">🗂️ Video Mapper Service <span class="section__file">video-mapper.service.spec.ts</span></div>
+        <span class="section__badge">8 / 8 ✓</span>
+      </div>
+      <div class="section__body">
+        <table>
+          <thead><tr><th>Status</th><th>Test</th></tr></thead>
+          <tbody>
+            <tr><td class="status">✅</td><td>sorts unsorted video_files highest→lowest and dedupes by label</td></tr>
+            <tr><td class="status">✅</td><td>falls back to "Unknown" author and hides invalid duration</td></tr>
+            <tr><td class="status">✅</td><td>uses a video_picture as poster when image is missing</td></tr>
+            <tr><td class="status">✅</td><td>marks a video unplayable when there are no usable sources</td></tr>
+            <tr><td class="status">✅</td><td>survives a null video_files array</td></tr>
+            <tr><td class="status">✅</td><td>filters out non-video file types and entries without a link</td></tr>
+            <tr><td class="status">✅</td><td>mapList skips broken records but keeps valid ones</td></tr>
+            <tr><td class="status">✅</td><td>returns [] for a malformed response</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Duration Pipe -->
+    <div class="section">
+      <div class="section__header" onclick="toggleSection(this)">
+        <div class="section__title">⏱️ Duration Pipe <span class="section__file">duration.pipe.spec.ts</span></div>
+        <span class="section__badge">4 / 4 ✓</span>
+      </div>
+      <div class="section__body">
+        <table>
+          <thead><tr><th>Status</th><th>Test</th></tr></thead>
+          <tbody>
+            <tr><td class="status">✅</td><td>formats whole minutes and seconds as m:ss</td></tr>
+            <tr><td class="status">✅</td><td>formats durations ≥ 1 hour as h:mm:ss</td></tr>
+            <tr><td class="status">✅</td><td>floors fractional seconds</td></tr>
+            <tr><td class="status">✅</td><td>returns empty string for null/undefined/invalid input</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Toast Component -->
+    <div class="section">
+      <div class="section__header" onclick="toggleSection(this)">
+        <div class="section__title">🔔 Toast Component <span class="section__file">toast.component.spec.ts</span></div>
+        <span class="section__badge">10 / 10 ✓</span>
+      </div>
+      <div class="section__body">
+        <table>
+          <thead><tr><th>Status</th><th>Test</th></tr></thead>
+          <tbody>
+            <tr><td class="status">✅</td><td>should create the component</td></tr>
+            <tr><td class="status">✅</td><td>should render no toasts when there are no notifications</td></tr>
+            <tr><td class="status">✅</td><td>should render a toast when a notification is added</td></tr>
+            <tr><td class="status">✅</td><td>should apply the correct CSS class based on notification level</td></tr>
+            <tr><td class="status">✅</td><td>should apply info class for info notifications</td></tr>
+            <tr><td class="status">✅</td><td>should apply success class for success notifications</td></tr>
+            <tr><td class="status">✅</td><td>should render multiple toasts for multiple notifications</td></tr>
+            <tr><td class="status">✅</td><td>should dismiss a notification when the close button is clicked</td></tr>
+            <tr><td class="status">✅</td><td>should have an aria-live region for accessibility</td></tr>
+            <tr><td class="status">✅</td><td>should set aria-label on dismiss button</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Videos Store -->
+    <div class="section">
+      <div class="section__header" onclick="toggleSection(this)">
+        <div class="section__title">🏪 Videos Store <span class="section__file">videos.store.spec.ts</span></div>
+        <span class="section__badge">9 / 9 ✓</span>
+      </div>
+      <div class="section__body">
+        <table>
+          <thead><tr><th>Status</th><th>Test</th></tr></thead>
+          <tbody>
+            <tr><td class="status">✅</td><td>loads the popular feed on init</td></tr>
+            <tr><td class="status">✅</td><td>searches via the API, debounced, only for the final query</td></tr>
+            <tr><td class="status">✅</td><td>sets the empty state when a search returns nothing</td></tr>
+            <tr><td class="status">✅</td><td>loadMore fetches the next page and appends</td></tr>
+            <tr><td class="status">✅</td><td>de-duplicates videos that overlap between pages</td></tr>
+            <tr><td class="status">✅</td><td>does not load more when there are no further pages</td></tr>
+            <tr><td class="status">✅</td><td>filters by resolution client-side without a new request</td></tr>
+            <tr><td class="status">✅</td><td>sets the error state and notifies on a failed load</td></tr>
+            <tr><td class="status">✅</td><td>exposes the selected video</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Video List Page -->
+    <div class="section">
+      <div class="section__header" onclick="toggleSection(this)">
+        <div class="section__title">📋 Video List Page <span class="section__file">video-list.page.spec.ts</span></div>
+        <span class="section__badge">9 / 9 ✓</span>
+      </div>
+      <div class="section__body">
+        <table>
+          <thead><tr><th>Status</th><th>Test</th></tr></thead>
+          <tbody>
+            <tr><td class="status">✅</td><td>should create the component</td></tr>
+            <tr><td class="status">✅</td><td>should render search input</td></tr>
+            <tr><td class="status">✅</td><td>should display video cards after loading</td></tr>
+            <tr><td class="status">✅</td><td>should show loading skeletons initially</td></tr>
+            <tr><td class="status">✅</td><td>should update store query when search input changes</td></tr>
+            <tr><td class="status">✅</td><td>should update store resolution filter when dropdown changes</td></tr>
+            <tr><td class="status">✅</td><td>should show empty state when no videos found</td></tr>
+            <tr><td class="status">✅</td><td>should show error state on API failure</td></tr>
+            <tr><td class="status">✅</td><td>should have a search label for accessibility</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Video Player Page -->
+    <div class="section">
+      <div class="section__header" onclick="toggleSection(this)">
+        <div class="section__title">▶️ Video Player Page <span class="section__file">video-player.page.spec.ts</span></div>
+        <span class="section__badge">18 / 18 ✓</span>
+      </div>
+      <div class="section__body">
+        <table>
+          <thead><tr><th>Status</th><th>Test</th></tr></thead>
+          <tbody>
+            <tr><td class="status">✅</td><td>should create the component</td></tr>
+            <tr><td class="status">✅</td><td>should call ensureSelected on init with the route param id</td></tr>
+            <tr><td class="status">✅</td><td>should expose the selected video from store</td></tr>
+            <tr><td class="status">✅</td><td>should initialize isPlaying as false</td></tr>
+            <tr><td class="status">✅</td><td>should initialize volume at 1</td></tr>
+            <tr><td class="status">✅</td><td>should initialize muted as false</td></tr>
+            <tr><td class="status">✅</td><td>should not throw on keyboard shortcut "m" without video element</td></tr>
+            <tr><td class="status">✅</td><td>should not throw on keyboard shortcut "f" without video element</td></tr>
+            <tr><td class="status">✅</td><td>should not throw on keyboard shortcut space without video element</td></tr>
+            <tr><td class="status">✅</td><td>should not throw on keyboard shortcut "k" without video element</td></tr>
+            <tr><td class="status">✅</td><td>should not throw on ArrowRight without video element</td></tr>
+            <tr><td class="status">✅</td><td>should not throw on ArrowLeft without video element</td></tr>
+            <tr><td class="status">✅</td><td>should compute currentSource from selected video</td></tr>
+            <tr><td class="status">✅</td><td>should track quality selection</td></tr>
+            <tr><td class="status">✅</td><td>should resume from query param "t" if provided</td></tr>
+            <tr><td class="status">✅</td><td>should write history on destroy if session was active</td></tr>
+            <tr><td class="status">✅</td><td>should not write history on destroy if never played</td></tr>
+            <tr><td class="status">✅</td><td>should set onEnded state correctly</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- History Store -->
+    <div class="section">
+      <div class="section__header" onclick="toggleSection(this)">
+        <div class="section__title">💾 History Store <span class="section__file">history.store.spec.ts</span></div>
+        <span class="section__badge">6 / 6 ✓</span>
+      </div>
+      <div class="section__body">
+        <table>
+          <thead><tr><th>Status</th><th>Test</th></tr></thead>
+          <tbody>
+            <tr><td class="status">✅</td><td>starts empty when nothing is persisted</td></tr>
+            <tr><td class="status">✅</td><td>loads persisted entries from localStorage on init</td></tr>
+            <tr><td class="status">✅</td><td>upsertSession inserts a new entry, then replaces one with the same id</td></tr>
+            <tr><td class="status">✅</td><td>remove deletes by entryId</td></tr>
+            <tr><td class="status">✅</td><td>recent is ordered most-recently-watched first</td></tr>
+            <tr><td class="status">✅</td><td>clear empties the history</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- History Page -->
+    <div class="section">
+      <div class="section__header" onclick="toggleSection(this)">
+        <div class="section__title">📜 History Page <span class="section__file">history.page.spec.ts</span></div>
+        <span class="section__badge">14 / 14 ✓</span>
+      </div>
+      <div class="section__body">
+        <table>
+          <thead><tr><th>Status</th><th>Test</th></tr></thead>
+          <tbody>
+            <tr><td class="status">✅</td><td>should create the component</td></tr>
+            <tr><td class="status">✅</td><td>should display the heading</td></tr>
+            <tr><td class="status">✅</td><td>should show empty state when no history entries exist</td></tr>
+            <tr><td class="status">✅</td><td>should not show Clear all button when history is empty</td></tr>
+            <tr><td class="status">✅</td><td>should display history entries</td></tr>
+            <tr><td class="status">✅</td><td>should show Clear all button when entries exist</td></tr>
+            <tr><td class="status">✅</td><td>should display the entry title</td></tr>
+            <tr><td class="status">✅</td><td>should show "Finished" badge for completed entries</td></tr>
+            <tr><td class="status">✅</td><td>should show "Stopped at" badge for stopped entries</td></tr>
+            <tr><td class="status">✅</td><td>should render the poster image when posterUrl is available</td></tr>
+            <tr><td class="status">✅</td><td>should render fallback when posterUrl is null</td></tr>
+            <tr><td class="status">✅</td><td>should remove entry when Delete button is clicked</td></tr>
+            <tr><td class="status">✅</td><td>should clear all entries when Clear all button is clicked</td></tr>
+            <tr><td class="status">✅</td><td>should have a "Browse videos" link in empty state</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Integration Tests -->
+  <div id="tab-integration" class="tab-content">
+
+    <!-- Video Catalog Flow -->
+    <div class="section">
+      <div class="section__header" onclick="toggleSection(this)">
+        <div class="section__title">🔄 Video Catalog Flow (API → Store → UI) <span class="section__file">video-catalog-flow.integration.spec.ts</span></div>
+        <span class="section__badge">20 / 20 ✓</span>
+      </div>
+      <div class="section__body">
+        <table>
+          <thead><tr><th>Status</th><th>Test</th></tr></thead>
+          <tbody>
+            <tr><td class="status">✅</td><td>should load popular videos and render them as cards through the full pipeline</td></tr>
+            <tr><td class="status">✅</td><td>should correctly map video duration through all layers</td></tr>
+            <tr><td class="status">✅</td><td>should map resolution labels through the pipeline and display badges</td></tr>
+            <tr><td class="status">✅</td><td>should debounce input, send search request, and update the grid</td></tr>
+            <tr><td class="status">✅</td><td>should cancel in-flight search when query changes (switchMap behavior)</td></tr>
+            <tr><td class="status">✅</td><td>should return to popular feed when search query is cleared</td></tr>
+            <tr><td class="status">✅</td><td>should show empty state when search returns no results</td></tr>
+            <tr><td class="status">✅</td><td>should filter videos client-side without hitting the API</td></tr>
+            <tr><td class="status">✅</td><td>should populate the resolution dropdown from loaded videos</td></tr>
+            <tr><td class="status">✅</td><td>should show “No matches” when filter hides all loaded videos</td></tr>
+            <tr><td class="status">✅</td><td>should append next page results without removing existing videos</td></tr>
+            <tr><td class="status">✅</td><td>should de-duplicate videos across pages</td></tr>
+            <tr><td class="status">✅</td><td>should not show load more button when no more pages</td></tr>
+            <tr><td class="status">✅</td><td>should map 500 errors through ErrorMapper → Store → UI error state</td></tr>
+            <tr><td class="status">✅</td><td>should show a notification toast on API failure</td></tr>
+            <tr><td class="status">✅</td><td>should recover via retry button after an error</td></tr>
+            <tr><td class="status">✅</td><td>should map 429 rate-limit error to user-friendly message</td></tr>
+            <tr><td class="status">✅</td><td>should map network error (status 0) to connectivity message</td></tr>
+            <tr><td class="status">✅</td><td>should skip videos with missing id and render valid ones</td></tr>
+            <tr><td class="status">✅</td><td>should mark videos with no usable sources as unavailable</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- VideoPlayer → HistoryStore -->
+    <div class="section">
+      <div class="section__header" onclick="toggleSection(this)">
+        <div class="section__title">▶️💾 VideoPlayer → HistoryStore <span class="section__file">video-player-history.integration.spec.ts</span></div>
+        <span class="section__badge">4 / 4 ✓</span>
+      </div>
+      <div class="section__body">
+        <table>
+          <thead><tr><th>Status</th><th>Test</th></tr></thead>
+          <tbody>
+            <tr><td class="status">✅</td><td>should record a history entry when video is played and component is destroyed</td></tr>
+            <tr><td class="status">✅</td><td>should record “finished” status when video ends</td></tr>
+            <tr><td class="status">✅</td><td>should not record history if video was never played</td></tr>
+            <tr><td class="status">✅</td><td>should persist history to localStorage</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- HistoryStore → HistoryPage -->
+    <div class="section">
+      <div class="section__header" onclick="toggleSection(this)">
+        <div class="section__title">💾📜 HistoryStore → HistoryPage <span class="section__file">video-player-history.integration.spec.ts</span></div>
+        <span class="section__badge">7 / 7 ✓</span>
+      </div>
+      <div class="section__body">
+        <table>
+          <thead><tr><th>Status</th><th>Test</th></tr></thead>
+          <tbody>
+            <tr><td class="status">✅</td><td>should display entries that were recorded by the player</td></tr>
+            <tr><td class="status">✅</td><td>should show “Finished” badge for completed videos</td></tr>
+            <tr><td class="status">✅</td><td>should show “Stopped at” badge for partially watched videos</td></tr>
+            <tr><td class="status">✅</td><td>should order entries most-recently-watched first</td></tr>
+            <tr><td class="status">✅</td><td>should clear all entries when Clear All is clicked</td></tr>
+            <tr><td class="status">✅</td><td>should remove a single entry</td></tr>
+            <tr><td class="status">✅</td><td>should display “Play again” links with correct route and resume time</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Deep-link to VideoPlayerPage -->
+    <div class="section">
+      <div class="section__header" onclick="toggleSection(this)">
+        <div class="section__title">🔗 Deep-link to VideoPlayerPage <span class="section__file">app-routing.integration.spec.ts</span></div>
+        <span class="section__badge">3 / 3 ✓</span>
+      </div>
+      <div class="section__body">
+        <table>
+          <thead><tr><th>Status</th><th>Test</th></tr></thead>
+          <tbody>
+            <tr><td class="status">✅</td><td>should fetch a video by ID when deep-linked and store is empty</td></tr>
+            <tr><td class="status">✅</td><td>should use existing store data without extra fetch when video is loaded</td></tr>
+            <tr><td class="status">✅</td><td>should resume playback from query param “t”</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- VideoListPage Routing Links -->
+    <div class="section">
+      <div class="section__header" onclick="toggleSection(this)">
+        <div class="section__title">📍 VideoListPage Routing Links <span class="section__file">app-routing.integration.spec.ts</span></div>
+        <span class="section__badge">2 / 2 ✓</span>
+      </div>
+      <div class="section__body">
+        <table>
+          <thead><tr><th>Status</th><th>Test</th></tr></thead>
+          <tbody>
+            <tr><td class="status">✅</td><td>should generate correct routerLinks for playable videos</td></tr>
+            <tr><td class="status">✅</td><td>should not provide routerLink for unavailable videos</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- HistoryPage Navigation Links -->
+    <div class="section">
+      <div class="section__header" onclick="toggleSection(this)">
+        <div class="section__title">📜 HistoryPage Navigation Links <span class="section__file">app-routing.integration.spec.ts</span></div>
+        <span class="section__badge">3 / 3 ✓</span>
+      </div>
+      <div class="section__body">
+        <table>
+          <thead><tr><th>Status</th><th>Test</th></tr></thead>
+          <tbody>
+            <tr><td class="status">✅</td><td>should link “Play again” to the correct video with resume time</td></tr>
+            <tr><td class="status">✅</td><td>should link “Play again” for finished videos with t=0</td></tr>
+            <tr><td class="status">✅</td><td>should link poster thumbnail to the correct video</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- E2E Tests -->
+  <div id="tab-e2e" class="tab-content">
+
+    <!-- Navigation -->
+    <div class="section">
+      <div class="section__header" onclick="toggleSection(this)">
+        <div class="section__title">🔀 Navigation <span class="section__file">e2e/tests/navigation.spec.ts</span></div>
+        <span class="section__badge">2 / 2 ✓</span>
+      </div>
+      <div class="section__body">
+        <table>
+          <thead><tr><th>Status</th><th>Use Case</th><th class="duration">Duration</th></tr></thead>
+          <tbody>
+            <tr><td class="status">✅</td><td><strong>UC-1:</strong> App loads and redirects to /videos</td><td class="duration">4.6 s</td></tr>
+            <tr><td class="status">✅</td><td><strong>UC-2:</strong> Navigate between Browse and History tabs</td><td class="duration">4.7 s</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Video List -->
+    <div class="section">
+      <div class="section__header" onclick="toggleSection(this)">
+        <div class="section__title">🎞️ Video List <span class="section__file">e2e/tests/video-list.spec.ts</span></div>
+        <span class="section__badge">5 / 5 ✓</span>
+      </div>
+      <div class="section__body">
+        <table>
+          <thead><tr><th>Status</th><th>Use Case</th><th class="duration">Duration</th></tr></thead>
+          <tbody>
+            <tr><td class="status">✅</td><td><strong>UC-3:</strong> Video cards displayed with title, author, and resolution</td><td class="duration">4.9 s</td></tr>
+            <tr><td class="status">✅</td><td><strong>UC-4:</strong> Search filters videos by keyword</td><td class="duration">2.8 s</td></tr>
+            <tr><td class="status">✅</td><td><strong>UC-5:</strong> Search with no results shows empty state</td><td class="duration">2.0 s</td></tr>
+            <tr><td class="status">✅</td><td><strong>UC-6:</strong> Resolution filter narrows displayed videos</td><td class="duration">2.7 s</td></tr>
+            <tr><td class="status">✅</td><td><strong>UC-7:</strong> Load more button fetches additional videos</td><td class="duration">13.1 s</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Video Player -->
+    <div class="section">
+      <div class="section__header" onclick="toggleSection(this)">
+        <div class="section__title">▶️ Video Player <span class="section__file">e2e/tests/video-player.spec.ts</span></div>
+        <span class="section__badge">3 / 3 ✓</span>
+      </div>
+      <div class="section__body">
+        <table>
+          <thead><tr><th>Status</th><th>Use Case</th><th class="duration">Duration</th></tr></thead>
+          <tbody>
+            <tr><td class="status">✅</td><td><strong>UC-8:</strong> Clicking a video card navigates to player page</td><td class="duration">2.1 s</td></tr>
+            <tr><td class="status">✅</td><td><strong>UC-9:</strong> Player shows video controls (play, seek, volume, fullscreen)</td><td class="duration">10.2 s</td></tr>
+            <tr><td class="status">✅</td><td><strong>UC-10:</strong> Back link returns to video list</td><td class="duration">10.2 s</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- History -->
+    <div class="section">
+      <div class="section__header" onclick="toggleSection(this)">
+        <div class="section__title">📜 History <span class="section__file">e2e/tests/history.spec.ts</span></div>
+        <span class="section__badge">1 / 1 ✓</span>
+      </div>
+      <div class="section__body">
+        <table>
+          <thead><tr><th>Status</th><th>Use Case</th><th class="duration">Duration</th></tr></thead>
+          <tbody>
+            <tr><td class="status">✅</td><td><strong>UC-11:</strong> History page shows empty state when no videos watched</td><td class="duration">4.6 s</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Commands -->
+  <div class="commands">
+    <h3>🚀 How to Run</h3>
+    <code><span class="comment"># Unit Tests</span></code>
+    <code>npm test &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># Interactive watch mode</span></code>
+    <code>npm run test:ci &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># Headless single run (CI)</span></code>
+    <code>&nbsp;</code>
+    <code><span class="comment"># Integration Tests</span></code>
+    <code>npx ng test --no-watch --browsers=ChromeHeadless --include="src/app/integration/**"</code>
+    <code>&nbsp;</code>
+    <code><span class="comment"># E2E Tests</span></code>
+    <code>npm run e2e &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># Headless Playwright</span></code>
+    <code>npm run e2e:ui &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># Interactive UI</span></code>
+    <code>npm run e2e:headed &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># Visible browser</span></code>
+  </div>
+
+  <div class="footer">
+    <span>Nice Media Player v0.0.0</span>
+    <span>Karma + Jasmine · Playwright · Chrome/Chromium · 145 tests</span>
+  </div>
+
+  <script>
+    function switchTab(name) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      event.target.classList.add('active');
+      document.getElementById('tab-' + name).classList.add('active');
+    }
+
+    function toggleSection(header) {
+      const body = header.nextElementSibling;
+      body.style.display = body.style.display === 'none' ? '' : 'none';
+    }
+  </script>
+
+</body>
+</html>
