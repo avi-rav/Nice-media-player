@@ -13,7 +13,7 @@
  * In production you would replace this with a thin BFF / serverless proxy that injects the
  * key from a server-side secret manager (see README).
  */
-const apiKey = process.env.PEXELS_API_KEY || '';
+const apiKey = '7ThqjuiUjMEa6kHaFPx3GrNLg4stS1WiqohDPz5I3czUVJn1PulS1S5D';
 
 if (!apiKey) {
   // Surfaced once at startup so a missing key is obvious; requests will 401 and the app
